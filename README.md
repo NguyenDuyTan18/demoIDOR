@@ -8,10 +8,14 @@ This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from 
 | attacker2 | `10.80.0.12` | `http://10.80.0.12/` |
 | attacker3 | `10.80.0.13` | `http://10.80.0.13/` |
 | attacker4 | `10.80.0.14` | `http://10.80.0.14/` |
+| attacker1 ServiceDesk | `10.80.0.11:8080` | Independent team instance |
+| attacker2 ServiceDesk | `10.80.0.12:8080` | Independent team instance |
+| attacker3 ServiceDesk | `10.80.0.13:8080` | Independent team instance |
+| attacker4 ServiceDesk | `10.80.0.14:8080` | Independent team instance |
 | server | `10.80.0.20` | ServiceDesk on port 80 |
 | gateway | `10.80.0.1` | Routing only |
 
-**Traffic policy:** Each attacker can ping and open HTTP on the other three attackers. The server can ping and open HTTP on all four attackers. New connections from any attacker to `10.80.0.20` are blocked, including ping and HTTP. The server does not forward packets. ServiceDesk remains reachable locally on the server at `http://127.0.0.1/`; it is not reachable from the attacker VMs. HTTP access among the permitted machines uses port 80 without adding `:80` to the URL.
+**Traffic policy:** Each attacker can ping and open HTTP on the other three attackers. The server can ping and open HTTP on all four attackers. New connections from any attacker to `10.80.0.20` are blocked, including ping and HTTP. The server does not forward packets. The shared ServiceDesk remains on the server at `http://127.0.0.1/`; each attacker also runs a separate ServiceDesk instance on port 8080 with its own local SQLite database. Attacker VMs can reach one another, so these are separate datasets but not network-isolated from other teams inside the sandbox. HTTP access among the permitted machines uses port 80 without adding `:80` to the URL.
 
 ## Deploy
 
@@ -21,9 +25,11 @@ This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from 
 
 The image and flavor names in `topology.yml` must exist in your cloud. The platform runner needs Ansible, the `user-access` role, and `ansible.posix` from `provisioning/requirements.yml`. The five host IPs and gateway subnet must not conflict with the platform's management network.
 
+Each attacker VM runs an independent ServiceDesk instance on port 8080 with its own database. Teams log in with username `alice` and a team-specific password. Supply four distinct passwords (at least 16 characters) through the secure deployment environment variables `CYBERRANGE_WEBDESK_ATTACKER1_PASSWORD` through `CYBERRANGE_WEBDESK_ATTACKER4_PASSWORD`, or through an encrypted Ansible Vault/platform secret store. Do not commit these passwords to Git. The playbook fails before changing attacker VMs if the four passwords are missing, repeated, or too short.
+
 ## Verify inside the sandbox
 
-On attacker1, these must succeed:
+On each attacker, its own ServiceDesk instance is available at `http://127.0.0.1:8080/` and reports a host-specific sandbox identity at `/health`. The four team instances use separate local databases. On attacker1, these must succeed:
 
 ```bash
 ping -c 1 10.80.0.12
