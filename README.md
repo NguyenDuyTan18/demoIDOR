@@ -25,7 +25,7 @@ This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from 
 
 The image and flavor names in `topology.yml` must exist in your cloud. The platform runner needs Ansible, the `user-access` role, and `ansible.posix` from `provisioning/requirements.yml`. The five host IPs and gateway subnet must not conflict with the platform's management network.
 
-Each attacker VM runs an independent ServiceDesk instance on port 8080 with its own database. Teams log in with username `alice` and a team-specific password. Supply four distinct passwords (at least 16 characters) through the secure deployment environment variables `CYBERRANGE_WEBDESK_ATTACKER1_PASSWORD` through `CYBERRANGE_WEBDESK_ATTACKER4_PASSWORD`, or through an encrypted Ansible Vault/platform secret store. The shared ServiceDesk on `server` uses its own `CYBERRANGE_WEBDESK_SERVER_PASSWORD` if provided; otherwise, it uses team 1's password (the server is isolated from attacker VMs by the network policy). Do not commit passwords to Git. The playbook validates all four team passwords before it changes any hosts, without printing the values.
+Each attacker VM runs an independent ServiceDesk instance on port 8080 with its own database and a unique random password generated during provisioning. Teams log in with username `alice`; the password is in `~/lab-addresses.txt` on their assigned attacker VM, readable only by the `user-access` account. The password is omitted from provisioning output, and reprovisioning generates a new one. The shared ServiceDesk also gets a random password; attacker VMs cannot reach it because of the network policy.
 
 ## Verify inside the sandbox
 

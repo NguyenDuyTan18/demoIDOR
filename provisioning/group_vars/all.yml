@@ -1,11 +1,5 @@
 # Lab-only credentials. Replace before use outside an isolated training cloud.
 lab_console_password: ClientLab-Only-2026!
-lab_web_passwords:
-  attacker1: "{{ lookup('ansible.builtin.env', 'CYBERRANGE_WEBDESK_ATTACKER1_PASSWORD') }}"
-  attacker2: "{{ lookup('ansible.builtin.env', 'CYBERRANGE_WEBDESK_ATTACKER2_PASSWORD') }}"
-  attacker3: "{{ lookup('ansible.builtin.env', 'CYBERRANGE_WEBDESK_ATTACKER3_PASSWORD') }}"
-  attacker4: "{{ lookup('ansible.builtin.env', 'CYBERRANGE_WEBDESK_ATTACKER4_PASSWORD') }}"
-lab_server_web_password: "{{ lookup('ansible.builtin.env', 'CYBERRANGE_WEBDESK_SERVER_PASSWORD') | default(lab_web_passwords.attacker1, true) }}"
 lab_enforce_owner: false
 lab_hosts:
   attacker1: 10.80.0.11
