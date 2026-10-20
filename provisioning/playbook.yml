@@ -15,7 +15,6 @@
           Set four distinct passwords of at least 16 characters through the
           CYBERRANGE_WEBDESK_ATTACKER{1..4}_PASSWORD environment variables or a secure
           Ansible variable source. Password values are not displayed.
-      no_log: true
 
     - name: Require the sandbox identity and expected host name
       ansible.builtin.assert:
