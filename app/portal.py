@@ -4,13 +4,41 @@ import hmac
 import json
 import secrets
 import sqlite3
+import threading
 import time
 from contextlib import closing
 from http import HTTPStatus
 from http.cookies import SimpleCookie, CookieError
 from pathlib import Path
 from urllib.parse import parse_qs
-from wsgiref.simple_server import make_server
+from socketserver import ThreadingMixIn
+from wsgiref.simple_server import WSGIServer, make_server
+
+
+class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+    """Serve concurrent requests with a bounded number of worker threads."""
+
+    daemon_threads = True
+    request_queue_size = 128
+    max_workers = 32
+
+    def __init__(self, *args, **kwargs):
+        self._worker_slots = threading.BoundedSemaphore(self.max_workers)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        self._worker_slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._worker_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._worker_slots.release()
 
 
 def create_app(database, password, sandbox_id, enforce_owner=False):
@@ -25,6 +53,7 @@ def create_app(database, password, sandbox_id, enforce_owner=False):
             (1401, 'bob', 'Internal project access request', 'open', 'Bob private workspace: ' + sandbox_id),
         ])
     sessions = {}
+    sessions_lock = threading.Lock()
     page = Path(__file__).with_name('portal.html').read_bytes()
 
     def app(env, start):
@@ -60,21 +89,25 @@ def create_app(database, password, sandbox_id, enforce_owner=False):
             if form.get('username') != ['alice'] or not hmac.compare_digest(candidate.encode(), password.encode()):
                 return respond(401, {'error': 'Invalid login'})
             now = time.time()
-            for old in list(sessions):
-                if sessions[old] <= now:
-                    del sessions[old]
             token = secrets.token_urlsafe(32)
-            sessions[token] = now + 1800
+            with sessions_lock:
+                for old in list(sessions):
+                    if sessions[old] <= now:
+                        del sessions[old]
+                sessions[token] = now + 1800
             return respond(200, {'user': 'alice'}, [('Set-Cookie', f'session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800')])
         try:
             cookies = SimpleCookie(env.get('HTTP_COOKIE', ''))
             token = cookies['session'].value if 'session' in cookies else ''
         except CookieError:
             token = ''
-        if sessions.get(token, 0) <= time.time():
+        with sessions_lock:
+            session_expiry = sessions.get(token, 0)
+        if session_expiry <= time.time():
             return respond(401, {'error': 'Login required'})
         if path == '/logout' and method == 'POST':
-            del sessions[token]
+            with sessions_lock:
+                sessions.pop(token, None)
             return respond(200, {'status': 'logged out'}, [('Set-Cookie', 'session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0')])
         with closing(sqlite3.connect(database)) as connection, connection:
             connection.row_factory = sqlite3.Row
@@ -111,7 +144,7 @@ def main():
     parser.add_argument('--host', default='127.0.0.1')
     args = parser.parse_args()
     config = json.loads(Path(args.config).read_text(encoding='utf-8'))
-    with make_server(args.host, args.port, create_app(**config)) as server:
+    with make_server(args.host, args.port, create_app(**config), server_class=ThreadingWSGIServer) as server:
         server.serve_forever()
 
 
