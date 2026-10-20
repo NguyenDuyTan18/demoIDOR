@@ -4,6 +4,19 @@
   become: true
   gather_facts: false
   tasks:
+    - name: Require four unique team web passwords before changing hosts
+      ansible.builtin.assert:
+        that:
+          - lab_web_passwords is defined
+          - lab_web_passwords.keys() | list | sort == ['attacker1', 'attacker2', 'attacker3', 'attacker4']
+          - lab_web_passwords.values() | unique | list | length == 4
+          - lab_web_passwords.values() | select('match', '^.{16,}$') | list | length == 4
+        fail_msg: >-
+          Set four distinct passwords of at least 16 characters through the
+          CYBERRANGE_WEBDESK_ATTACKER{1..4}_PASSWORD environment variables or a secure
+          Ansible variable source. Password values are not displayed.
+      no_log: true
+
     - name: Require the sandbox identity and expected host name
       ansible.builtin.assert:
         that:
@@ -111,7 +124,7 @@
         mode: '0640'
         content: >-
           {{ dict(database='/var/lib/idor-free-lab/tickets.sqlite',
-          password=lab_web_password,
+          password=lab_server_web_password,
           sandbox_id=global_sandbox_id,
           enforce_owner=lab_enforce_owner | bool) | to_nice_json }}
       no_log: true
@@ -173,19 +186,6 @@
     user_access_sudo: false
     user_access_ssh_public_key: '{{ global_ssh_public_user_key }}'
   pre_tasks:
-    - name: Require a unique web password for each team
-      ansible.builtin.assert:
-        that:
-          - lab_web_passwords is defined
-          - lab_web_passwords.keys() | list | sort == ['attacker1', 'attacker2', 'attacker3', 'attacker4']
-          - lab_web_passwords.values() | unique | list | length == 4
-          - lab_web_passwords.values() | select('match', '^.{16,}$') | list | length == 4
-        fail_msg: >-
-          Provide four distinct web passwords of at least 16 characters through the
-          CYBERRANGE_WEBDESK_ATTACKER{1..4}_PASSWORD environment variables or a secure
-          Ansible variable source. Password values are not displayed.
-      no_log: true
-
     - name: Require the platform-provided trainee public key
       ansible.builtin.assert:
         that:
