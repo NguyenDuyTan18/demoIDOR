@@ -1,6 +1,6 @@
 # One sandbox: four attackers and one server
 
-This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from this repository root. The single sandbox contains four Kali attacker VMs, one Debian ServiceDesk server VM, and a separate gateway router. CyberRangeCZ v2026.07+ uses the gateway as a NetBird routing peer so trainees can connect directly to the attacker IPs.
+This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from this repository root. The single sandbox contains four Kali attacker VMs, one Debian ServiceDesk server VM, and a separate gateway router.
 
 | Node | IP | HTTP |
 | --- | --- | --- |
@@ -15,9 +15,9 @@ This is one CyberRangeCZ Sandbox Definition. Create **one pool of size 1** from 
 
 ## Deploy
 
-1. Use CyberRangeCZ Platform **v2026.07 or newer**, with its NetBird management/control integration configured by the platform administrator. Put this directory at the root of a Git repository accessible to CyberRangeCZ. `topology.yml` and `provisioning/` must be at the repository root.
-2. Create one Sandbox Definition from that Git URL and revision. The platform must accept the `vpn.entrypoints` topology attribute and provision NetBird access for trainees. Create one pool with **size 1**, then Allocate it. The provisioning playbook configures all five hosts and fails if the required connectivity policy does not work.
-3. Import `training-definition.json`, review and release it, then create one cloud Training Instance and assign the pool. After starting a run, the trainee connects their NetBird client using the access/invitation flow configured by the platform, then opens the assigned sandbox IPs directly. The advertised VPN routes are only `10.80.0.11/32` through `10.80.0.14/32`; `10.80.0.20` is intentionally excluded. The attacker Linux login is `user-access / ClientLab-Only-2026!`.
+1. Put this directory at the root of a Git repository accessible to CyberRangeCZ. `topology.yml` and `provisioning/` must be at the repository root.
+2. Create one Sandbox Definition from that Git URL and revision. Create one pool with **size 1**, then Allocate it. The provisioning playbook configures all five hosts and fails if the required connectivity policy does not work.
+3. Import `training-definition.json`, review and release it, then create one cloud Training Instance and assign the pool. Open a run to see the five hosts in the topology. The attacker Linux login is `user-access / ClientLab-Only-2026!`.
 
 The image and flavor names in `topology.yml` must exist in your cloud. The platform runner needs Ansible, the `user-access` role, and `ansible.posix` from `provisioning/requirements.yml`. The five host IPs and gateway subnet must not conflict with the platform's management network.
 
@@ -43,7 +43,7 @@ curl --noproxy '*' --connect-timeout 3 http://10.80.0.20/
 
 On the server, `curl --noproxy '*' http://127.0.0.1/health` must succeed, and `sudo nft list table inet idor_server_acl` must show the rule blocking new attacker connections. The server can also ping and curl all four attacker addresses.
 
-The server ACL has its own nftables table and systemd unit; it does not replace other firewall tables. The provisioning playbook tests all permitted and blocked paths before it finishes. A private `10.x.x.x` URL is accessible only from the lab network or the configured NetBird tunnel. The VPN routes exclude the ServiceDesk server so trainees retain the existing blocked-access policy.
+The server ACL has its own nftables table and systemd unit; it does not replace other firewall tables. The provisioning playbook tests all permitted and blocked paths before it finishes. A private `10.x.x.x` URL is accessible only from the lab network or an approved tunnel.
 
 ## Local source checks
 
